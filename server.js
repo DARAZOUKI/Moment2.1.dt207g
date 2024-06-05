@@ -1,99 +1,118 @@
 // Import necessary modules
 const express = require('express');
-const mysql = require('mysql');
 const cors = require('cors');
 require('dotenv').config();
+const { Pool } = require('pg');
 
 // Create an Express application
 const app = express();
-const PORT = process.env.PORT || 2000;
+const PORT = process.env.PORT || 8000;
 
 // Use JSON middleware
 app.use(express.json());
+app.use(express.static('src'));
 
 // Enable CORS
 app.use(cors());
 
-// Create MySQL connection
-const connection = mysql.createConnection({
-    host: '34.66.246.105',
-    user: 'root',
-    password: 'dania',
-    database: 'cv'
-});
-
-// Connect to MySQL
-connection.connect((err) => {
-  if (err) {
-    console.error('Error connecting to MySQL: ' + err.stack);
-    return;
+// PostgreSQL database connection
+const pool = new Pool({
+  user: 'workexperiences_user',
+  host: 'dpg-cpfs7jv79t8c73e97r8g-a.oregon-postgres.render.com',
+  database: 'workexperiences',
+  password: 'Vln1U8MNia0ojpL4zR1xhvu0L3TzS9ba',
+  port: 5432,
+  ssl: {
+    rejectUnauthorized: false
   }
-  console.log('Connected to MySQL as id ' + connection.threadId);
 });
 
 // Routes
+
 // GET all work experiences
-app.get('/workexperiences', (req, res) => {
-  connection.query('SELECT * FROM workexperience', (error, results) => {
-    if (error) {
-      console.error('Error retrieving work experiences: ' + error);
-      res.status(500).json({ error: 'An error occurred while retrieving work experiences' });
-    } else {
-      res.json(results);
-    }
-  });
+app.get('/workexperiences', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM workexperience');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error retrieving work experiences:', error);
+    res.status(500).json({ error: 'An error occurred while retrieving work experiences' });
+  }
 });
 
 // POST a new work experience
-
-app.post('/workexperiences', (req, res) => {
+app.post('/workexperiences', async (req, res) => {
   const newWorkExperience = req.body;
 
-  // Check if companyname field is provided and not null
-  if (!newWorkExperience.companyname) {
-    return res.status(400).json({ error: 'companyname field is required' });
+  if (!newWorkExperience.companyname || !newWorkExperience.jobtitle) {
+    return res.status(400).json({ error: 'companyname and jobtitle fields are required' });
   }
 
   const { companyname, jobtitle, location, startdate, enddate, description } = newWorkExperience;
-  const query = `INSERT INTO workexperience (companyname, jobtitle, location, startdate, enddate, description) VALUES (?, ?, ?, ?, ?, ?)`;
+  const query = `
+    INSERT INTO workexperience (companyname, jobtitle, location, startdate, enddate, description) 
+    VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+  `;
   const values = [companyname, jobtitle, location, startdate, enddate, description];
-  
-  connection.query(query, values, (error, results) => {
-    if (error) {
-      console.error('Error adding new work experience: ' + error);
-      res.status(500).json({ error: 'An error occurred while adding new work experience' });
-    } else {
-      res.status(201).json({ message: 'Work experience added successfully' });
-    }
-  });
+
+  try {
+    const result = await pool.query(query, values);
+    const newId = result.rows[0].id;
+    res.status(201).json({ message: 'Work experience added successfully', id: newId });
+  } catch (error) {
+    console.error('Error adding new work experience:', error);
+    res.status(500).json({ error: 'An error occurred while adding new work experience' });
+  }
 });
-
-
 // PUT (update) a work experience
-app.put('/workexperiences/:id', (req, res) => {
+app.put('/workexperiences/:id', async (req, res) => {
   const id = req.params.id;
   const updatedWorkExperience = req.body;
-  connection.query('UPDATE workexperience SET ? WHERE id = ?', [updatedWorkExperience, id], (error, results) => {
-    if (error) {
-      console.error('Error updating work experience: ' + error);
-      res.status(500).json({ error: 'An error occurred while updating work experience' });
-    } else {
-      res.json({ message: 'Work experience updated successfully' });
-    }
-  });
+
+  const query = `
+    UPDATE workexperience 
+    SET companyname = $1, jobtitle = $2, location = $3, startdate = $4, enddate = $5, description = $6 
+    WHERE id = $7
+  `;
+  const values = [
+    updatedWorkExperience.companyname,
+    updatedWorkExperience.jobtitle,
+    updatedWorkExperience.location,
+    updatedWorkExperience.startdate,
+    updatedWorkExperience.enddate,
+    updatedWorkExperience.description,
+    id
+  ];
+
+  try {
+    await pool.query(query, values);
+    res.json({ message: 'Work experience updated successfully' });
+  } catch (error) {
+    console.error('Error updating work experience:', error);
+    res.status(500).json({ error: 'An error occurred while updating work experience' });
+  }
 });
 
 // DELETE a work experience
-app.delete('/workexperiences/:id', (req, res) => {
-  const id = req.params.id;
-  connection.query('DELETE FROM workexperience WHERE id = ?', id, (error, results) => {
-    if (error) {
-      console.error('Error deleting work experience: ' + error);
-      res.status(500).json({ error: 'An error occurred while deleting work experience' });
+app.delete('/workexperiences/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10); // Convert the id to an integer
+
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid ID' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM workexperience WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ message: 'Work experience not found' });
     } else {
       res.json({ message: 'Work experience deleted successfully' });
     }
-  });
+  } catch (error) {
+    console.error('Error deleting work experience:', error);
+    res.status(500).json({ error: 'An error occurred while deleting work experience' });
+  }
 });
 
 // Start the server
