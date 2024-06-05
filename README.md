@@ -13,11 +13,11 @@ The assignment requirements are as follows:
 ## Testing the Web Service:
 You can test the web service using tools like Postman or by making HTTP requests from your client application. Here's how to perform each operation:
 
-    **Retrieve all work experiences: Send a GET request to http://localhost:8000/workexperiences to retrieve all work experiences stored in the database.
+** Retrieve all work experiences: Send a GET request to http://localhost:8000/workexperiences to retrieve all work experiences stored in the database.
 
-    **Add a work experience: Send a POST request to http://localhost:8000/workexperiences with a JSON body containing the details of the new work experience.
+** Add a work experience: Send a POST request to http://localhost:8000/workexperiences with a JSON body containing the details of the new work experience.
 
-    **Update a work experience: Send a PUT request to http://localhost:8000/workexperiences/:id with the ID of the work experience to update, along with the updated data in the JSON body.
+** Update a work experience: Send a PUT request to http://localhost:8000/workexperiences/:id with the ID of the work experience to update, along with the updated data in the JSON body.
 
-    **Delete a work experience: Send a DELETE request to http://localhost:8000/workexperiences/:id with the ID of the work experience to delete.
+** Delete a work experience: Send a DELETE request to http://localhost:8000/workexperiences/:id with the ID of the work experience to delete.
     
